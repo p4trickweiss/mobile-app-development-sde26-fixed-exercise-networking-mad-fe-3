@@ -22,9 +22,6 @@ struct ContentView: View {
     @State private var alertTitle: String = ""
     @State private var alertMessage: String = ""
 
-    private let validEmail = "test@example.com"
-    private let validPassword = "password123"
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Email")
@@ -100,14 +97,27 @@ struct ContentView: View {
 
         isLoggingIn = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            if self.email == self.validEmail && self.password == self.validPassword {
-                self.presentAlert(title: "Success", message: "You are now logged in!")
-            } else {
-                self.presentAlert(title: "Login Failed", message: "Incorrect email or password.")
-            }
+        Networking().login(email: email, password: password) { user, error in
+            isLoggingIn = false
 
-            self.isLoggingIn = false
+            if let error = error {
+                presentAlert(title: "Login Failed", message: message(for: error))
+            } else if let user = user {
+                presentAlert(title: "Success", message: "You are now logged in as \(user.email).")
+            }
+        }
+    }
+
+    private func message(for error: NetworkingError) -> String {
+        switch error {
+        case .serializationFailed(let details): return "Could not build the request: \(details)"
+        case .invalidEmail: return "That is not a valid email address."
+        case .unknownEmail: return "No account exists for this email address."
+        case .wrongPassword: return "Incorrect email or password."
+        case .offline(let details): return "You appear to be offline: \(details)"
+        case .unexpectedFormat: return "The server sent a response we could not understand."
+        case .httpError(let code): return "The server responded with an error (HTTP \(code))."
+        case .unexpected(let details): return "Something unexpected went wrong: \(details)"
         }
     }
 
